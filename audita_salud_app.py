@@ -100,7 +100,7 @@ height=400
 
 
         # Periodicidad de atención
-            st.subheader("Periodicidad de Atención Médica")
+                    st.subheader("Periodicidad de Atención Médica")
             fechas = []
             patrones_fecha = [r'\d{2}/\d{2}/\d{4}', r'\d{4}-\d{2}-\d{2}']
             for patron in patrones_fecha:
