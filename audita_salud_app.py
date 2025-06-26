@@ -36,7 +36,7 @@ st.markdown("""
 st.sidebar.title("📄 Instrucciones")
 st.sidebar.markdown("1. Sube un archivo PDF de historia clínica.\n2. Revisa los campos obligatorios.\n3. Usa la búsqueda de texto.\n4. Consulta periodicidad, edad y órdenes médicas.")
 
-st.title("🩺 Auditor Médico de Historias Clínicas (Colombia)")
+st.title("🩺 Auditor Médico de Historias Clínicas")
 
 st.markdown("Sube un archivo PDF con la historia clínica y el sistema verificará el cumplimiento de normativas.")
 st.markdown("""
