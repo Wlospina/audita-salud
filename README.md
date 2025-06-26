@@ -1,2 +1,2 @@
-# audita-salud
- Auditor médico para historias clínicas en PDF basado en normatividad colombiana.
+# Audita Salud
+Auditor médico de historias clínicas en PDF basado en normatividad colombiana.
