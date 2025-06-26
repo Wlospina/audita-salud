@@ -68,7 +68,7 @@ if uploaded_file:
 
         # Mostrar texto completo con scroll y resaltado
         st.subheader("Texto extraído del PDF")
-       highlighted_lines = []
+       
 anchors = []
 
 for idx, linea in enumerate(full_text.split('\n')):
