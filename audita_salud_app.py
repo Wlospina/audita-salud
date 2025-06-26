@@ -29,13 +29,13 @@ if uploaded_file:
         full_text = ""
         for page in doc:
             full_text += page.get_text()
-            # Mostrar todo el texto del PDF extraído
-                st.subheader("Texto extraído del PDF")
-                st.text_area("Contenido extraído:", full_text, height=400)
-
+           
     if full_text.strip():
         # Verificación de campos obligatorios
         st.subheader("Verificación de campos obligatorios")
+         # Mostrar todo el texto del PDF extraído
+                st.subheader("Texto extraído del PDF")
+                st.text_area("Contenido extraído:", full_text, height=400)
         campos_clave = ["motivo de consulta", "antecedentes", "examen físico", "evolución", "plan de manejo", "firma", "nombre", "edad"]
         faltantes = [c for c in campos_clave if c.lower() not in full_text.lower()]
 
