@@ -8,6 +8,30 @@ import streamlit.components.v1 as components
 
 st.set_page_config(page_title="Auditor Médico", page_icon="🩺", layout="wide")
 
+# Aplicar estilo personalizado global
+st.markdown("""
+    <style>
+        body {
+            background-color: #f0f2f6;
+            color: #1a1a1a;
+            font-family: 'Segoe UI', sans-serif;
+        }
+        .stApp {
+            max-width: 1200px;
+            margin: auto;
+            padding: 2rem;
+        }
+        .stMarkdown h1, .stMarkdown h2, .stMarkdown h3, .stMarkdown h4 {
+            color: #003366;
+        }
+        .stSidebar > div {
+            background-color: #e6f0ff;
+            padding: 1rem;
+            border-radius: 10px;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
 # Barra lateral
 st.sidebar.title("📄 Instrucciones")
 st.sidebar.markdown("1. Sube un archivo PDF de historia clínica.\n2. Revisa los campos obligatorios.\n3. Usa la búsqueda de texto.\n4. Consulta periodicidad, edad y órdenes médicas.")
@@ -79,12 +103,13 @@ if uploaded_file:
                 #texto_extraido {{
                     max-height: 60vh;
                     overflow-y: auto;
-                    border: 1px solid #ccc;
-                    padding: 15px;
-                    background: #f9f9f9;
+                    border: 2px solid #cce;
+                    padding: 20px;
+                    background: #ffffff;
                     font-size: 15px;
-                    line-height: 1.5;
-                    font-family: 'Segoe UI', sans-serif;
+                    line-height: 1.6;
+                    border-radius: 12px;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
                 }}
                 @media (max-width: 768px) {{
                     #texto_extraido {{ font-size: 14px; }}
@@ -105,8 +130,9 @@ if uploaded_file:
                 }}
             </script>
             """,
-            height=400
+            height=420
         )
+
 
         # El resto del código permanece igual...
 
