@@ -32,6 +32,7 @@ if uploaded_file:
             full_text += page.get_text()
 
     if full_text.strip():
+        # Verificación de campos obligatorios
         st.subheader("Verificación de campos obligatorios")
         campos_clave = ["motivo de consulta", "antecedentes", "examen físico", "evolución", "plan de manejo", "firma", "nombre", "edad"]
         faltantes = [c for c in campos_clave if c.lower() not in full_text.lower()]
@@ -43,6 +44,7 @@ if uploaded_file:
             for f in faltantes:
                 st.markdown(f"- {f}")
 
+        # Buscar palabra clave
         st.subheader("Buscar palabra clave en el texto")
         palabra_clave = st.text_input("Ingresa una palabra o frase para buscar")
 
@@ -64,11 +66,12 @@ if uploaded_file:
             else:
                 st.warning("No se encontraron coincidencias.")
 
+        # Mostrar texto completo con scroll y resaltado
         st.subheader("Texto extraído del PDF")
         components.html(
             f"""
             <div id=\"texto_extraido\" style=\"height: 400px; overflow-y: scroll; border: 1px solid #ccc; padding: 10px;\">
-                {'<br>'.join([f"<div id='match-{idx}'>{linea.replace(palabra_clave, f'<mark>{palabra_clave}</mark>')}</div>" if palabra_clave.lower() in linea.lower() else linea for idx, linea in enumerate(full_text.split('\\n'))])}
+                {'<br>'.join([f"<div id='match-{idx}'>{linea.replace(palabra_clave, f'<mark>{palabra_clave}</mark>')}</div>" if palabra_clave.lower() in linea.lower() else linea for idx, linea in enumerate(full_text.split('\n'))])}
             </div>
             <script>
                 const url = new URL(window.location.href);
@@ -80,17 +83,27 @@ if uploaded_file:
                         el.style.backgroundColor = '#fff8c6';
                     }}
                 }}
-            </script>
-            """,
+            </script>            """,
             height=400
         )
 
+        # Periodicidad de atención
         st.subheader("Periodicidad de Atención Médica")
         fechas = []
         patrones_fecha = [r'\d{2}/\d{2}/\d{4}', r'\d{4}-\d{2}-\d{2}']
         for patron in patrones_fecha:
             fechas.extend(re.findall(patron, full_text))
         fechas_unicas = sorted(set(fechas), key=lambda d: datetime.strptime(d, "%d/%m/%Y") if "/" in d else datetime.strptime(d, "%Y-%m-%d"))
+
+        # Detectar fecha de nacimiento
+        nacimiento_match = re.search(r'(Fecha de nacimiento|fecha nacimiento|Nacimiento):?\s*(\d{2}[/-]\d{2}[/-]\d{4})', full_text, re.IGNORECASE)
+        fecha_nacimiento = None
+        if nacimiento_match:
+            fecha_nacimiento = nacimiento_match.group(2).replace("-", "/")
+            try:
+                fecha_nacimiento_dt = datetime.strptime(fecha_nacimiento, "%d/%m/%Y")
+            except:
+                fecha_nacimiento_dt = None
 
         if fechas_unicas:
             st.markdown(f"- Fechas encontradas: {', '.join(fechas_unicas)}")
@@ -100,24 +113,36 @@ if uploaded_file:
                 promedio = round(sum(diferencias) / len(diferencias), 1)
                 st.markdown(f"- En promedio, el paciente es atendido cada **{promedio} días**.")
 
-            edad_actual = re.search(r'(\d+)\s*(años|a\.?\s?m\.?|a\.?\s?nos)', full_text.lower())
-            if edad_actual:
-                st.markdown(f"- Edad actual del paciente: **{edad_actual.group(1)} años**")
+            if fecha_nacimiento_dt:
+                edades = []
+                for f in fechas_unicas:
+                    dt = datetime.strptime(f, "%d/%m/%Y") if "/" in f else datetime.strptime(f, "%Y-%m-%d")
+                    edad = dt.year - fecha_nacimiento_dt.year - ((dt.month, dt.day) < (fecha_nacimiento_dt.month, fecha_nacimiento_dt.day))
+                    edades.append((f, edad))
+                st.markdown("**Edad del paciente en cada atención:**")
+                for f, e in edades:
+                    st.markdown(f"- 📆 {f}: **{e} años**")
 
+                edad_actual = datetime.today().year - fecha_nacimiento_dt.year - ((datetime.today().month, datetime.today().day) < (fecha_nacimiento_dt.month, fecha_nacimiento_dt.day))
+                st.markdown(f"- Edad actual del paciente: **{edad_actual} años**")
+
+            # Buscar acompañante o responsable
             responsable = re.search(r'(acompañante|responsable)[^:\n]*[:\s]+([A-ZÁÉÍÓÚÑa-záéíóúñ ]{3,})', full_text, re.IGNORECASE)
             if responsable:
                 st.markdown(f"- Acompañante o responsable: **{responsable.group(2).strip()}**")
         else:
             st.info("No se encontraron fechas en el documento.")
 
+        # Órdenes médicas
         st.subheader("Órdenes Médicas o Exámenes Solicitados")
-        ordenes = re.findall(r'(Se (ordena|solicita|envía)[^.\n]*)', full_text, re.IGNORECASE)
+        ordenes = re.findall(r'(Se (ordena|solicita|envía)[^\.\n]*)', full_text, re.IGNORECASE)
         if ordenes:
             for o in ordenes:
                 st.markdown(f"- {o[0].strip()}")
         else:
             st.info("No se encontraron órdenes médicas explícitas en el texto.")
 
+        # Resumen automático con IA
         st.subheader("Resumen automático del contenido clínico")
         resumidor = pipeline("summarization", model="knkarthick/MEETING_SUMMARY")
         if len(full_text) > 100:
