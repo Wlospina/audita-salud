@@ -33,6 +33,22 @@ if uploaded_file:
 
         st.subheader("Texto extraído del PDF:")
         st.text_area("Contenido extraído:", full_text, height=400)
+        # Filtro de búsqueda por palabra clave
+st.markdown("###  Buscar palabra clave en el texto")
+
+# Input para palabra clave
+palabra_clave = st.text_input("Ingresa una palabra o frase para buscar")
+
+# Mostrar resultados si hay palabra clave ingresada
+if palabra_clave:
+    resultados = [linea for linea in texto.split('\n') if palabra_clave.lower() in linea.lower()]
+    if resultados:
+        st.success(f"Se encontraron {len(resultados)} coincidencias:")
+        for res in resultados:
+            st.markdown(f"- {res}")
+    else:
+        st.warning("No se encontraron coincidencias.")
+
 
         #  Generar resumen automático con IA (modelo liviano)
         resumidor = pipeline("summarization", model="knkarthick/MEETING_SUMMARY")
