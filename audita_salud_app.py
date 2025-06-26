@@ -100,12 +100,12 @@ components.html(
 
 
         # Periodicidad de atención
-        st.subheader("Periodicidad de Atención Médica")
-        fechas = []
-        patrones_fecha = [r'\d{2}/\d{2}/\d{4}', r'\d{4}-\d{2}-\d{2}']
-        for patron in patrones_fecha:
+            st.subheader("Periodicidad de Atención Médica")
+            fechas = []
+            patrones_fecha = [r'\d{2}/\d{2}/\d{4}', r'\d{4}-\d{2}-\d{2}']
+            for patron in patrones_fecha:
             fechas.extend(re.findall(patron, full_text))
-        fechas_unicas = sorted(set(fechas), key=lambda d: datetime.strptime(d, "%d/%m/%Y") if "/" in d else datetime.strptime(d, "%Y-%m-%d"))
+            fechas_unicas = sorted(set(fechas), key=lambda d: datetime.strptime(d, "%d/%m/%Y") if "/" in d else datetime.strptime(d, "%Y-%m-%d"))
 
         if fechas_unicas:
             st.markdown(f"- Fechas encontradas: {', '.join(fechas_unicas)}")
