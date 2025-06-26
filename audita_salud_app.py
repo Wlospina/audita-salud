@@ -29,6 +29,9 @@ if uploaded_file:
         full_text = ""
         for page in doc:
             full_text += page.get_text()
+            # Mostrar todo el texto del PDF extraído
+                st.subheader("Texto extraído del PDF")
+                st.text_area("Contenido extraído:", full_text, height=400)
 
     if full_text.strip():
         # Verificación de campos obligatorios
