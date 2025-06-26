@@ -34,20 +34,31 @@ if uploaded_file:
         st.subheader("Texto extraído del PDF:")
         st.text_area("Contenido extraído:", full_text, height=400)
         # Filtro de búsqueda por palabra clave
-st.markdown("###  Buscar palabra clave en el texto")
+# Filtro de búsqueda por palabra clave
+st.markdown("### Buscar palabra clave en el texto")
 
 # Input para palabra clave
 palabra_clave = st.text_input("Ingresa una palabra o frase para buscar")
 
 # Mostrar resultados si hay palabra clave ingresada
 if palabra_clave:
-    resultados = [linea for linea in full_text.split('\n') if palabra_clave.lower() in linea.lower()]
+    resultados = []
+    for linea in full_text.split('\n'):
+        if palabra_clave.lower() in linea.lower():
+            # Resalta la palabra encontrada con Markdown (negrilla azul)
+            linea_resaltada = linea.replace(
+                palabra_clave,
+                f"**:blue[{palabra_clave}]**"
+            )
+            resultados.append(linea_resaltada)
+
     if resultados:
-        st.success(f"Se encontraron {len(resultados)} coincidencias:")
+        st.success(f" Se encontraron {len(resultados)} coincidencias:")
         for res in resultados:
-            st.markdown(f"- {res}")
+            st.markdown(f"- {res}", unsafe_allow_html=True)
     else:
-        st.warning("No se encontraron coincidencias.")
+        st.warning("⚠ No se encontraron coincidencias.")
+
 
 
         #  Generar resumen automático con IA (modelo liviano)
