@@ -13,7 +13,9 @@ st.markdown("""
 - Antecedentes  
 - Examen físico  
 - Evolución  
-- Plan de manejo  
+- Plan de manejo 
+- nombre
+- Edad
 - Firma del profesional  
 """)
 
@@ -29,7 +31,7 @@ if uploaded_file:
 # Funciones auxiliares
     if full_text.strip():
         st.markdown("###  Verificación de campos obligatorios")
-        campos_clave = ["motivo de consulta", "antecedentes", "examen físico", "evolución", "plan de manejo", "firma"]
+        campos_clave = ["motivo de consulta", "antecedentes", "examen físico", "evolución", "plan de manejo", "firma", "nombre", "edad"]
         faltantes = [c for c in campos_clave if c.lower() not in full_text.lower()]
 
         if not faltantes:
@@ -147,7 +149,7 @@ st.markdown("### Campos Faltantes o Inconsistencias")
 
 palabras_clave = [
     "motivo de consulta", "antecedentes", "plan de manejo",
-    "firma", "evolución", "examen físico"
+    "firma", "evolución", "examen físico", "nombre", "edad"
 ]
 faltantes = [palabra for palabra in palabras_clave if palabra.lower() not in full_text.lower()]
 
