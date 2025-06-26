@@ -68,24 +68,36 @@ if uploaded_file:
 
         # Mostrar texto completo con scroll y resaltado
         st.subheader("Texto extraído del PDF")
-        components.html(
-            f"""
-            <div id=\"texto_extraido\" style=\"height: 400px; overflow-y: scroll; border: 1px solid #ccc; padding: 10px;\">
-                {'<br>'.join([f"<div id='match-{idx}'>{linea.replace(palabra_clave, f'<mark>{palabra_clave}</mark>')}</div>" if palabra_clave.lower() in linea.lower() else linea for idx, linea in enumerate(full_text.split('\\n'))])}
-            </div>
-            <script>
-                const url = new URL(window.location.href);
-                const hash = url.hash;
-                if (hash.startsWith("#match-")) {{
-                    const el = document.getElementById(hash.slice(1));
-                    if (el) {{
-                        el.scrollIntoView({{ behavior: 'smooth', block: 'center' }});
-                        el.style.backgroundColor = '#fff8c6';
-                    }}
-                }}
-            </script>            """,
-            height=400
+       highlighted_lines = []
+anchors = []
+
+for idx, linea in enumerate(full_text.split('\n')):
+    if palabra_clave.lower() in linea.lower():
+        linea_resaltada = linea.replace(
+            palabra_clave,
+            f"<mark id='match-{idx}'>{palabra_clave}</mark>"
         )
+        highlighted_lines.append(f"<div>{linea_resaltada}</div>")
+        anchors.append(idx)
+    else:
+        highlighted_lines.append(f"<div>{linea}</div>")
+
+components.html(
+    f"""
+    <div id="texto_extraido" style="height: 400px; overflow-y: scroll; border: 1px solid #ccc; padding: 10px;">
+        {''.join(highlighted_lines)}
+    </div>
+    <script>
+        const params = new URLSearchParams(window.location.hash.substring(1));
+        const target = document.getElementById("{'match-' + str(anchors[0]) if anchors else ''}");
+        if (target) {{
+            target.scrollIntoView({{ behavior: 'smooth', block: 'center' }});
+        }}
+    </script>
+    """,
+    height=400
+)
+
 
         # Periodicidad de atención
         st.subheader("Periodicidad de Atención Médica")
