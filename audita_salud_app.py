@@ -36,6 +36,17 @@ if uploaded_file:
             st.text_area("Contenido extraído:", full_text, height=400)
        
         # Añadido código para leer y mostrar texto de PDFs
+from transformers import pipeline
+
+# Cargar modelo de resumen (solo se hace una vez)
+resumidor = pipeline("summarization", model="sshleifer/distilbart-cnn-12-6")
+
+# Generar resumen
+if len(full_text) > 100:  # evita errores con textos muy cortos
+    resumen = resumidor(full_text[:1000], max_length=130, min_length=30, do_sample=False)[0]['summary_text']
+    st.subheader("🧠 Resumen automático del contenido clínico:")
+    st.info(resumen)
+
 
 
 
