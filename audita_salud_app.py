@@ -41,7 +41,7 @@ palabra_clave = st.text_input("Ingresa una palabra o frase para buscar")
 
 # Mostrar resultados si hay palabra clave ingresada
 if palabra_clave:
-    resultados = [linea for linea in texto.split('\n') if palabra_clave.lower() in linea.lower()]
+    resultados = [linea for linea in full_text.split('\n') if palabra_clave.lower() in linea.lower()]
     if resultados:
         st.success(f"Se encontraron {len(resultados)} coincidencias:")
         for res in resultados:
