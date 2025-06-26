@@ -21,4 +21,5 @@ if uploaded_file:
             st.text_area("Contenido extraído:", full_text, height=400)
         else:
             st.warning("No se pudo extraer texto del PDF. Verifica que no sea una imagen o escaneado.")
-🔄 Añadido código para leer y mostrar texto de PDFs
+# Añadido código para leer y mostrar texto de PDFs
+
