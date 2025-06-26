@@ -151,6 +151,7 @@ palabras_clave = [
     "motivo de consulta", "antecedentes", "plan de manejo",
     "firma", "evolución", "examen físico", "nombre", "edad"
 ]
+palabras_clave = ["nombre", "edad", "diagnóstico", "examen físico", "evolución", "plan de manejo", "firma"]
 faltantes = [palabra for palabra in palabras_clave if palabra.lower() not in full_text.lower()]
 
 if not faltantes:
