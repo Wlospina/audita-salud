@@ -67,5 +67,5 @@ if palabra_clave:
             resumen = resumidor(full_text[:1000])[0]['summary_text']
             st.subheader("Resumen automático del contenido clínico:")
             st.info(resumen)
-    else:
+        else:
         st.warning(" No se pudo extraer texto del PDF. Verifica que no sea un escaneo o imagen.")
