@@ -68,4 +68,4 @@ if palabra_clave:
             st.subheader("Resumen automático del contenido clínico:")
             st.info(resumen)
         else:
-        st.warning(" No se pudo extraer texto del PDF. Verifica que no sea un escaneo o imagen.")
+            st.warning(" No se pudo extraer texto del PDF. Verifica que no sea un escaneo o imagen.")
