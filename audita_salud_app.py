@@ -4,6 +4,7 @@ import re
 from datetime import datetime
 from transformers import pipeline
 from markupsafe import Markup
+import streamlit.components.v1 as components
 
 st.set_page_config(page_title="Auditor Médico", page_icon="🩺", layout="centered")
 st.title("Auditor Médico de Historias Clínicas (Colombia)")
@@ -29,13 +30,10 @@ if uploaded_file:
         full_text = ""
         for page in doc:
             full_text += page.get_text()
-           
+
     if full_text.strip():
         # Verificación de campos obligatorios
         st.subheader("Verificación de campos obligatorios")
-         # Mostrar todo el texto del PDF extraído
-        st.subheader("Texto extraído del PDF")
-        st.text_area("Contenido extraído:", full_text, height=400)
         campos_clave = ["motivo de consulta", "antecedentes", "examen físico", "evolución", "plan de manejo", "firma", "nombre", "edad"]
         faltantes = [c for c in campos_clave if c.lower() not in full_text.lower()]
 
@@ -68,6 +66,27 @@ if uploaded_file:
             else:
                 st.warning("No se encontraron coincidencias.")
 
+        # Mostrar texto completo con scroll y resaltado
+        st.subheader("Texto extraído del PDF")
+        components.html(
+            f"""
+            <div id=\"texto_extraido\" style=\"height: 400px; overflow-y: scroll; border: 1px solid #ccc; padding: 10px;\">
+                {'<br>'.join([f"<div id='match-{idx}'>{linea.replace(palabra_clave, f'<mark>{palabra_clave}</mark>')}</div>" if palabra_clave.lower() in linea.lower() else linea for idx, linea in enumerate(full_text.split('\\n'))])}
+            </div>
+            <script>
+                const url = new URL(window.location.href);
+                const hash = url.hash;
+                if (hash.startsWith("#match-")) {{
+                    const el = document.getElementById(hash.slice(1));
+                    if (el) {{
+                        el.scrollIntoView({{ behavior: 'smooth', block: 'center' }});
+                        el.style.backgroundColor = '#fff8c6';
+                    }}
+                }}
+            </script>            """,
+            height=400
+        )
+
         # Periodicidad de atención
         st.subheader("Periodicidad de Atención Médica")
         fechas = []
@@ -83,6 +102,16 @@ if uploaded_file:
                 diferencias = [(fechas_dt[i] - fechas_dt[i - 1]).days for i in range(1, len(fechas_dt))]
                 promedio = round(sum(diferencias) / len(diferencias), 1)
                 st.markdown(f"- En promedio, el paciente es atendido cada **{promedio} días**.")
+
+            # Mostrar edad actual
+            edad_actual = re.search(r'(\d+)\s*(años|a\.?\s?m\.?|a\.?\s?nos)', full_text.lower())
+            if edad_actual:
+                st.markdown(f"- Edad actual del paciente: **{edad_actual.group(1)} años**")
+
+            # Buscar acompañante o responsable
+            responsable = re.search(r'(acompañante|responsable)[^:\n]*[:\s]+([A-ZÁÉÍÓÚÑa-záéíóúñ ]{3,})', full_text, re.IGNORECASE)
+            if responsable:
+                st.markdown(f"- Acompañante o responsable: **{responsable.group(2).strip()}**")
         else:
             st.info("No se encontraron fechas en el documento.")
 
