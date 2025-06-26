@@ -6,8 +6,13 @@ from transformers import pipeline
 from markupsafe import Markup
 import streamlit.components.v1 as components
 
-st.set_page_config(page_title="Auditor Médico", page_icon="🩺", layout="centered")
-st.title("Auditor Médico de Historias Clínicas (Colombia)")
+st.set_page_config(page_title="Auditor Médico", page_icon="🩺", layout="wide")
+
+# Barra lateral
+st.sidebar.title("📄 Instrucciones")
+st.sidebar.markdown("1. Sube un archivo PDF de historia clínica.\n2. Revisa los campos obligatorios.\n3. Usa la búsqueda de texto.\n4. Consulta periodicidad, edad y órdenes médicas.")
+
+st.title("🩺 Auditor Médico de Historias Clínicas (Colombia)")
 
 st.markdown("Sube un archivo PDF con la historia clínica y el sistema verificará el cumplimiento de normativas.")
 st.markdown("""
@@ -33,7 +38,7 @@ if uploaded_file:
 
     if full_text.strip():
         # Verificación de campos obligatorios
-        st.subheader("Verificación de campos obligatorios")
+        st.subheader("✅ Verificación de campos obligatorios")
         campos_clave = ["motivo de consulta", "antecedentes", "examen físico", "evolución", "plan de manejo", "firma", "nombre", "edad"]
         faltantes = [c for c in campos_clave if c.lower() not in full_text.lower()]
 
@@ -45,7 +50,7 @@ if uploaded_file:
                 st.markdown(f"- {f}")
 
         # Buscar palabra clave
-        st.subheader("Buscar palabra clave en el texto")
+        st.subheader("🔍 Buscar palabra clave en el texto")
         palabra_clave = st.text_input("Ingresa una palabra o frase para buscar")
 
         if palabra_clave:
@@ -66,11 +71,26 @@ if uploaded_file:
             else:
                 st.warning("No se encontraron coincidencias.")
 
-        # Mostrar texto completo con scroll y resaltado
-        st.subheader("Texto extraído del PDF")
+        # Mostrar texto completo con scroll y responsivo
+        st.subheader("📃 Texto extraído del PDF")
         components.html(
             f"""
-            <div id=\"texto_extraido\" style=\"height: 400px; overflow-y: scroll; border: 1px solid #ccc; padding: 10px;\">
+            <style>
+                #texto_extraido {{
+                    max-height: 60vh;
+                    overflow-y: auto;
+                    border: 1px solid #ccc;
+                    padding: 15px;
+                    background: #f9f9f9;
+                    font-size: 15px;
+                    line-height: 1.5;
+                    font-family: 'Segoe UI', sans-serif;
+                }}
+                @media (max-width: 768px) {{
+                    #texto_extraido {{ font-size: 14px; }}
+                }}
+            </style>
+            <div id='texto_extraido'>
                 {'<br>'.join([f"<div id='match-{idx}'>{linea.replace(palabra_clave, f'<mark>{palabra_clave}</mark>')}</div>" if palabra_clave.lower() in linea.lower() else linea for idx, linea in enumerate(full_text.split('\n'))])}
             </div>
             <script>
@@ -83,9 +103,13 @@ if uploaded_file:
                         el.style.backgroundColor = '#fff8c6';
                     }}
                 }}
-            </script>            """,
+            </script>
+            """,
             height=400
         )
+
+        # El resto del código permanece igual...
+
 
         # Periodicidad de atención
         st.subheader("Periodicidad de Atención Médica")
