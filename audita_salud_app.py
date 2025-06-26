@@ -1,6 +1,7 @@
 import streamlit as st
 import fitz  # PyMuPDF
 from transformers import pipeline
+from markupsafe import Markup
 
 st.set_page_config(page_title="Auditor Médico", page_icon="🩺", layout="centered")
 
@@ -35,6 +36,46 @@ if uploaded_file:
         st.text_area("Contenido extraído:", full_text, height=400)
         # Filtro de búsqueda por palabra clave
 # Filtro de búsqueda por palabra clave
+# NUEVO BLOQUE: auditoría mejorada y resaltado
+st.markdown("### Buscar palabra clave en el texto")
+palabra_clave = st.text_input("Ingresa una palabra o frase para buscar")
+
+if palabra_clave:
+    resultados = []
+    for idx, linea in enumerate(full_text.split('\n')):
+    if palabra_clave.lower() in linea.lower():
+        linea_resaltada = linea.replace(
+            palabra_clave,
+            Markup(f"<span style='background-color:yellow'><b>{palabra_clave}</b></span>")
+        )
+        resultados.append((f"match-{idx}", linea_resaltada))
+
+
+    if resultados:
+        st.success(f" Se encontraron {len(resultados)} coincidencias:")
+        for anchor_id, res in resultados:
+           st.markdown(f"- [Ir a coincidencia](#{anchor_id})", unsafe_allow_html=True)
+           st.markdown(f"<div id='{anchor_id}'>{res}</div>", unsafe_allow_html=True)
+
+    else:
+        st.warning(" No se encontraron coincidencias.")
+
+# AUDITORÍA AUTOMÁTICA
+st.markdown("---")
+st.markdown("### Campos Faltantes o Inconsistencias")
+
+palabras_clave = [
+    "motivo de consulta", "antecedentes", "plan de manejo",
+    "firma", "evolución", "examen físico"
+]
+faltantes = [palabra for palabra in palabras_clave if palabra.lower() not in full_text.lower()]
+
+if not faltantes:
+    st.success(" La historia clínica contiene todos los campos clave requeridos.")
+else:
+    st.error(" Faltan los siguientes campos clave según la norma:")
+    for campo in faltantes:
+        st.markdown(f"- {campo}")
 st.markdown("### Buscar palabra clave en el texto")
 
 # Input para palabra clave
@@ -43,14 +84,16 @@ palabra_clave = st.text_input("Ingresa una palabra o frase para buscar")
 # Mostrar resultados si hay palabra clave ingresada
 if palabra_clave:
     resultados = []
-    for linea in full_text.split('\n'):
+    for idx, linea in enumerate(full_text.split('\n')):
+
         if palabra_clave.lower() in linea.lower():
             # Resalta la palabra encontrada con Markdown (negrilla azul)
             linea_resaltada = linea.replace(
                 palabra_clave,
                 f"**:blue[{palabra_clave}]**"
             )
-            resultados.append(linea_resaltada)
+            resultados.append((f"match-{idx}", linea_resaltada))
+
 
     if resultados:
         st.success(f" Se encontraron {len(resultados)} coincidencias:")
