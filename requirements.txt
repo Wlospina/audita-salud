@@ -1,7 +1,4 @@
 streamlit
 PyMuPDF
 transformers
-streamlit
-PyMuPDF
-transformers
 torch
