@@ -23,6 +23,8 @@ if uploaded_file:
             faltantes = [palabra for palabra in palabras_clave if palabra.lower() not in full_text.lower()]
 
             st.markdown("### Resultado de la auditoría:")
+            st.info(f"Campos verificados: {len(palabras_clave)} | Campos faltantes: {len(faltantes)}")
+
             if not faltantes:
                 st.success("La historia clínica contiene todos los campos clave requeridos.")
             else:
