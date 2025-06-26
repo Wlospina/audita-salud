@@ -93,8 +93,11 @@ components.html(
         if (target) {{
             target.scrollIntoView({{ behavior: 'smooth', block: 'center' }});
         }}
-   </script>
-""", height=400)
+ </script>
+""",
+height=400
+)
+
 
         # Periodicidad de atención
             st.subheader("Periodicidad de Atención Médica")
