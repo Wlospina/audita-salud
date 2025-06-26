@@ -32,7 +32,6 @@ if uploaded_file:
             full_text += page.get_text()
 
     if full_text.strip():
-        # Verificación de campos obligatorios
         st.subheader("Verificación de campos obligatorios")
         campos_clave = ["motivo de consulta", "antecedentes", "examen físico", "evolución", "plan de manejo", "firma", "nombre", "edad"]
         faltantes = [c for c in campos_clave if c.lower() not in full_text.lower()]
@@ -44,7 +43,6 @@ if uploaded_file:
             for f in faltantes:
                 st.markdown(f"- {f}")
 
-        # Buscar palabra clave
         st.subheader("Buscar palabra clave en el texto")
         palabra_clave = st.text_input("Ingresa una palabra o frase para buscar")
 
@@ -66,46 +64,33 @@ if uploaded_file:
             else:
                 st.warning("No se encontraron coincidencias.")
 
-        # Mostrar texto completo con scroll y resaltado
         st.subheader("Texto extraído del PDF")
-       
-anchors = []
-
-for idx, linea in enumerate(full_text.split('\n')):
-    if palabra_clave.lower() in linea.lower():
-        linea_resaltada = linea.replace(
-            palabra_clave,
-            f"<mark id='match-{idx}'>{palabra_clave}</mark>"
+        components.html(
+            f"""
+            <div id=\"texto_extraido\" style=\"height: 400px; overflow-y: scroll; border: 1px solid #ccc; padding: 10px;\">
+                {'<br>'.join([f"<div id='match-{idx}'>{linea.replace(palabra_clave, f'<mark>{palabra_clave}</mark>')}</div>" if palabra_clave.lower() in linea.lower() else linea for idx, linea in enumerate(full_text.split('\\n'))])}
+            </div>
+            <script>
+                const url = new URL(window.location.href);
+                const hash = url.hash;
+                if (hash.startsWith("#match-")) {{
+                    const el = document.getElementById(hash.slice(1));
+                    if (el) {{
+                        el.scrollIntoView({{ behavior: 'smooth', block: 'center' }});
+                        el.style.backgroundColor = '#fff8c6';
+                    }}
+                }}
+            </script>
+            """,
+            height=400
         )
-        highlighted_lines.append(f"<div>{linea_resaltada}</div>")
-        anchors.append(idx)
-    else:
-        highlighted_lines.append(f"<div>{linea}</div>")
 
-components.html(
-    f"""
-    <div id="texto_extraido" style="height: 400px; overflow-y: scroll; border: 1px solid #ccc; padding: 10px;">
-        {''.join(highlighted_lines)}
-    </div>
-    <script>
-        const params = new URLSearchParams(window.location.hash.substring(1));
-        const target = document.getElementById("{'match-' + str(anchors[0]) if anchors else ''}");
-        if (target) {{
-            target.scrollIntoView({{ behavior: 'smooth', block: 'center' }});
-        }}
- </script>
-""",
-height=400
-)
-
-
-        # Periodicidad de atención
-                    st.subheader("Periodicidad de Atención Médica")
-            fechas = []
-            patrones_fecha = [r'\d{2}/\d{2}/\d{4}', r'\d{4}-\d{2}-\d{2}']
-            for patron in patrones_fecha:
+        st.subheader("Periodicidad de Atención Médica")
+        fechas = []
+        patrones_fecha = [r'\d{2}/\d{2}/\d{4}', r'\d{4}-\d{2}-\d{2}']
+        for patron in patrones_fecha:
             fechas.extend(re.findall(patron, full_text))
-            fechas_unicas = sorted(set(fechas), key=lambda d: datetime.strptime(d, "%d/%m/%Y") if "/" in d else datetime.strptime(d, "%Y-%m-%d"))
+        fechas_unicas = sorted(set(fechas), key=lambda d: datetime.strptime(d, "%d/%m/%Y") if "/" in d else datetime.strptime(d, "%Y-%m-%d"))
 
         if fechas_unicas:
             st.markdown(f"- Fechas encontradas: {', '.join(fechas_unicas)}")
@@ -115,19 +100,16 @@ height=400
                 promedio = round(sum(diferencias) / len(diferencias), 1)
                 st.markdown(f"- En promedio, el paciente es atendido cada **{promedio} días**.")
 
-            # Mostrar edad actual
             edad_actual = re.search(r'(\d+)\s*(años|a\.?\s?m\.?|a\.?\s?nos)', full_text.lower())
             if edad_actual:
                 st.markdown(f"- Edad actual del paciente: **{edad_actual.group(1)} años**")
 
-            # Buscar acompañante o responsable
             responsable = re.search(r'(acompañante|responsable)[^:\n]*[:\s]+([A-ZÁÉÍÓÚÑa-záéíóúñ ]{3,})', full_text, re.IGNORECASE)
             if responsable:
                 st.markdown(f"- Acompañante o responsable: **{responsable.group(2).strip()}**")
         else:
             st.info("No se encontraron fechas en el documento.")
 
-        # Órdenes médicas
         st.subheader("Órdenes Médicas o Exámenes Solicitados")
         ordenes = re.findall(r'(Se (ordena|solicita|envía)[^.\n]*)', full_text, re.IGNORECASE)
         if ordenes:
@@ -136,7 +118,6 @@ height=400
         else:
             st.info("No se encontraron órdenes médicas explícitas en el texto.")
 
-        # Resumen automático con IA
         st.subheader("Resumen automático del contenido clínico")
         resumidor = pipeline("summarization", model="knkarthick/MEETING_SUMMARY")
         if len(full_text) > 100:
