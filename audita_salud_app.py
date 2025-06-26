@@ -124,10 +124,10 @@ palabra_clave = st.text_input("Ingresa una palabra o frase para buscar")
 if palabra_clave:
     resultados = []
     for idx, linea in enumerate(full_text.split('\n')):
-    if palabra_clave.lower() in linea.lower():
-        linea_resaltada = linea.replace(
-            palabra_clave,
-            Markup(f"<span style='background-color:yellow'><b>{palabra_clave}</b></span>")
+        if palabra_clave.lower() in linea.lower():
+            linea_resaltada = linea.replace(
+              palabra_clave,
+               Markup(f"<span style='background-color:yellow'><b>{palabra_clave}</b></span>")
         )
         resultados.append((f"match-{idx}", linea_resaltada))
 
