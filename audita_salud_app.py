@@ -2,7 +2,6 @@ import streamlit as st
 import fitz  # PyMuPDF
 import re
 from datetime import datetime
-from transformers import pipeline
 from markupsafe import Markup
 import streamlit.components.v1 as components
 
@@ -108,14 +107,19 @@ if uploaded_file:
             height=400
         )
 
-        # Extraer fecha de nacimiento del texto
+        # Buscar fecha de nacimiento en el texto
         fecha_nacimiento_dt = None
-        match_fn = re.search(r'fecha\s+nacimiento[:\s]*([\d]{1,2}/[a-z]+/[12][0-9]{3})', full_text, re.IGNORECASE)
+        match_fn = re.search(r"fecha\s+nacimiento[\s:\-]*([\d]{{1,2}}/[\d]{{1,2}}/[\d]{{2,4}})", full_text, re.IGNORECASE)
         if match_fn:
             try:
-                fecha_nacimiento_dt = datetime.strptime(match_fn.group(1), "%d/%B/%Y")
+                fecha_nacimiento_dt = datetime.strptime(match_fn.group(1), "%d/%m/%Y")
             except ValueError:
                 try:
-                    fecha_nacimiento_dt = datetime.strptime(match_fn.group(1), "%d/%b/%Y")
+                    fecha_nacimiento_dt = datetime.strptime(match_fn.group(1), "%d/%m/%y")
                 except:
                     pass
+
+        # Aquí continuaría el resto de funcionalidades, como periodicidad, edad, etc.
+        # Asegúrate de utilizar la variable `fecha_nacimiento_dt` solo si fue definida correctamente
+        # if fecha_nacimiento_dt:
+        #     calcular edad o mostrar edad al momento de cada atención
