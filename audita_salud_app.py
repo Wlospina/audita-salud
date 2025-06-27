@@ -8,35 +8,11 @@ import streamlit.components.v1 as components
 
 st.set_page_config(page_title="Auditor Médico", page_icon="🩺", layout="wide")
 
-# Aplicar estilo personalizado global
-st.markdown("""
-    <style>
-        body {
-            background-color: #f0f2f6;
-            color: #1a1a1a;
-            font-family: 'Segoe UI', sans-serif;
-        }
-        .stApp {
-            max-width: 1200px;
-            margin: auto;
-            padding: 2rem;
-        }
-        .stMarkdown h1, .stMarkdown h2, .stMarkdown h3, .stMarkdown h4 {
-            color: #003366;
-        }
-        .stSidebar > div {
-            background-color: #e6f0ff;
-            padding: 1rem;
-            border-radius: 10px;
-        }
-    </style>
-""", unsafe_allow_html=True)
-
 # Barra lateral
 st.sidebar.title("📄 Instrucciones")
 st.sidebar.markdown("1. Sube un archivo PDF de historia clínica.\n2. Revisa los campos obligatorios.\n3. Usa la búsqueda de texto.\n4. Consulta periodicidad, edad y órdenes médicas.")
 
-st.title("🩺 Auditor Médico de Historias Clínicas")
+st.title("🩺 Auditor Médico de Historias Clínicas (Colombia)")
 
 st.markdown("Sube un archivo PDF con la historia clínica y el sistema verificará el cumplimiento de normativas.")
 st.markdown("""
@@ -103,13 +79,12 @@ if uploaded_file:
                 #texto_extraido {{
                     max-height: 60vh;
                     overflow-y: auto;
-                    border: 2px solid #cce;
-                    padding: 20px;
-                    background: #ffffff;
+                    border: 1px solid #ccc;
+                    padding: 15px;
+                    background: #f9f9f9;
                     font-size: 15px;
-                    line-height: 1.6;
-                    border-radius: 12px;
-                    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+                    line-height: 1.5;
+                    font-family: 'Segoe UI', sans-serif;
                 }}
                 @media (max-width: 768px) {{
                     #texto_extraido {{ font-size: 14px; }}
@@ -130,73 +105,17 @@ if uploaded_file:
                 }}
             </script>
             """,
-            height=420
+            height=400
         )
 
-
-        # El resto del código permanece igual...
-
-
-        # Periodicidad de atención
-        st.subheader("Periodicidad de Atención Médica")
-        fechas = []
-        patrones_fecha = [r'\d{2}/\d{2}/\d{4}', r'\d{4}-\d{2}-\d{2}']
-        for patron in patrones_fecha:
-            fechas.extend(re.findall(patron, full_text))
-        fechas_unicas = sorted(set(fechas), key=lambda d: datetime.strptime(d, "%d/%m/%Y") if "/" in d else datetime.strptime(d, "%Y-%m-%d"))
-
-        # Detectar fecha de nacimiento
-        nacimiento_match = re.search(r'(Fecha de nacimiento|fecha nacimiento|Nacimiento):?\s*(\d{2}[/-]\d{2}[/-]\d{4})', full_text, re.IGNORECASE)
-        fecha_nacimiento = None
-        if nacimiento_match:
-            fecha_nacimiento = nacimiento_match.group(2).replace("-", "/")
+        # Extraer fecha de nacimiento del texto
+        fecha_nacimiento_dt = None
+        match_fn = re.search(r'fecha\s+nacimiento[:\s]*([\d]{1,2}/[a-z]+/[12][0-9]{3})', full_text, re.IGNORECASE)
+        if match_fn:
             try:
-                fecha_nacimiento_dt = datetime.strptime(fecha_nacimiento, "%d/%m/%Y")
-            except:
-                fecha_nacimiento_dt = None
-
-        if fechas_unicas:
-            st.markdown(f"- Fechas encontradas: {', '.join(fechas_unicas)}")
-            if len(fechas_unicas) > 1:
-                fechas_dt = [datetime.strptime(f, "%d/%m/%Y") if "/" in f else datetime.strptime(f, "%Y-%m-%d") for f in fechas_unicas]
-                diferencias = [(fechas_dt[i] - fechas_dt[i - 1]).days for i in range(1, len(fechas_dt))]
-                promedio = round(sum(diferencias) / len(diferencias), 1)
-                st.markdown(f"- En promedio, el paciente es atendido cada **{promedio} días**.")
-
-            if fecha_nacimiento_dt:
-                edades = []
-                for f in fechas_unicas:
-                    dt = datetime.strptime(f, "%d/%m/%Y") if "/" in f else datetime.strptime(f, "%Y-%m-%d")
-                    edad = dt.year - fecha_nacimiento_dt.year - ((dt.month, dt.day) < (fecha_nacimiento_dt.month, fecha_nacimiento_dt.day))
-                    edades.append((f, edad))
-                st.markdown("**Edad del paciente en cada atención:**")
-                for f, e in edades:
-                    st.markdown(f"- 📆 {f}: **{e} años**")
-
-                edad_actual = datetime.today().year - fecha_nacimiento_dt.year - ((datetime.today().month, datetime.today().day) < (fecha_nacimiento_dt.month, fecha_nacimiento_dt.day))
-                st.markdown(f"- Edad actual del paciente: **{edad_actual} años**")
-
-            # Buscar acompañante o responsable
-            responsable = re.search(r'(acompañante|responsable)[^:\n]*[:\s]+([A-ZÁÉÍÓÚÑa-záéíóúñ ]{3,})', full_text, re.IGNORECASE)
-            if responsable:
-                st.markdown(f"- Acompañante o responsable: **{responsable.group(2).strip()}**")
-        else:
-            st.info("No se encontraron fechas en el documento.")
-
-        # Órdenes médicas
-        st.subheader("Órdenes Médicas o Exámenes Solicitados")
-        ordenes = re.findall(r'(Se (ordena|solicita|envía)[^\.\n]*)', full_text, re.IGNORECASE)
-        if ordenes:
-            for o in ordenes:
-                st.markdown(f"- {o[0].strip()}")
-        else:
-            st.info("No se encontraron órdenes médicas explícitas en el texto.")
-
-        # Resumen automático con IA
-        st.subheader("Resumen automático del contenido clínico")
-        resumidor = pipeline("summarization", model="knkarthick/MEETING_SUMMARY")
-        if len(full_text) > 100:
-            resumen = resumidor(full_text[:1000])[0]['summary_text']
-            st.info(resumen)
-        else:
-            st.warning("No se pudo extraer texto suficiente del PDF para generar resumen.")
+                fecha_nacimiento_dt = datetime.strptime(match_fn.group(1), "%d/%B/%Y")
+            except ValueError:
+                try:
+                    fecha_nacimiento_dt = datetime.strptime(match_fn.group(1), "%d/%b/%Y")
+                except:
+                    pass
