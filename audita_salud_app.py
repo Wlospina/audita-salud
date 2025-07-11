@@ -2,12 +2,10 @@ import streamlit as st
 import fitz  # PyMuPDF
 import re
 from datetime import datetime
-from collections import OrderedDict
 
 # --- CONFIGURACIÓN DE LA PÁGINA Y ESTILOS ---
 st.set_page_config(page_title="Auditor Médico AI", page_icon="🩺", layout="wide")
 
-# --- INYECCIÓN DE CSS PARA MEJORAR LA UI/UX ---
 st.markdown("""
 <style>
     .main { background-color: #f5f5f5; }
@@ -30,7 +28,7 @@ def parse_date_flexible(date_str):
     date_str_normalized = date_str.lower()
     for name, num in meses_map.items():
         date_str_normalized = date_str_normalized.replace(name, num)
-    date_str_clean = re.sub(r'[^0-9/]', '/', date_str_normalized).strip('/')
+    date_str_clean = re.sub(r'[^0-9/]', '', date_str_normalized).strip('/')
     for fmt in ("%d/%m/%Y", "%d/%m/%y"):
         try:
             return datetime.strptime(date_str_clean, fmt)
@@ -39,9 +37,13 @@ def parse_date_flexible(date_str):
     return None
 
 def find_birth_date(text):
-    match = re.search(r"Fecha\s*Nacimiento[\s:]*([^\n]+\n[^\n]+)", text, re.IGNORECASE)
-    if match:
-        return parse_date_flexible(match.group(1))
+    # Busca la etiqueta y luego busca un patrón de fecha en un área más amplia (100 caracteres)
+    match_label = re.search(r"Fecha\s*Nacimiento[\s:]*", text, re.IGNORECASE)
+    if match_label:
+        text_after_label = text[match_label.end():match_label.end() + 100]
+        date_match = re.search(r"(\d{1,2}[/\s-](?:[a-zA-ZáéíóúñÁÉÍÓÚÑ]+|[0-9]{1,2})[/\s-]\d{2,4})", text_after_label)
+        if date_match:
+            return parse_date_flexible(date_match.group(1))
     return None
 
 def find_patient_name(text):
@@ -50,18 +52,19 @@ def find_patient_name(text):
         return match.group(1).strip().title()
     return "No encontrado"
 
-def extract_text_from_pdf(pdf_file):
+def extract_text_pages(pdf_file):
+    """NUEVA FUNCIÓN: Extrae el texto PÁGINA POR PÁGINA, manteniendo la estructura."""
     try:
         pdf_bytes = pdf_file.read()
         doc = fitz.open(stream=pdf_bytes, filetype="pdf")
         if doc.is_encrypted:
             st.error("❌ **Error: El PDF está protegido.**")
             return None
-        full_text = "\n".join(page.get_text() for page in doc)
-        if not full_text.strip():
+        pages = [page.get_text() for page in doc]
+        if not any(page.strip() for page in pages):
             st.error("❌ **Error: El PDF no contiene texto extraíble.**")
             return None
-        return full_text
+        return pages
     except Exception as e:
         st.error(f"❌ **Error inesperado al procesar el PDF:** {e}")
         return None
@@ -71,36 +74,41 @@ def calculate_age(birth_date, attention_date):
     age = attention_date.year - birth_date.year - ((attention_date.month, attention_date.day) < (birth_date.month, birth_date.day))
     return f"{age} años"
 
-def extract_attentions(text):
-    """Lógica Híbrida: Encuentra todas las fechas únicas y luego divide el texto."""
+def extract_attentions(page_texts):
+    """NUEVA ARQUITECTURA: Procesa el documento página por página para encontrar atenciones."""
     attentions = []
-    date_pattern = r"\b(\d{1,2}[/\s-](?:[a-zA-ZáéíóúñÁÉÍÓÚÑ]+|[0-9]{1,2})[/\s-]\d{2,4})\b"
+    current_attention = None
     
-    # Usamos OrderedDict para mantener el orden y eliminar duplicados
-    found_dates = list(OrderedDict.fromkeys(re.findall(date_pattern, text, re.IGNORECASE)))
+    # Palabras clave que indican el inicio de una nueva consulta/atención
+    starters = ["motivo de consulta", "enfermedad actual", "control", "evolución"]
+    starters_pattern = re.compile("|".join(starters), re.IGNORECASE)
+    date_pattern = re.compile(r"\b(\d{1,2}[/\s-](?:[a-zA-ZáéíóúñÁÉÍÓÚÑ]+|[0-9]{1,2})[/\s-]\d{2,4})\b", re.IGNORECASE)
 
-    if not found_dates:
-        return []
-
-    # Construye un patrón para dividir el texto por CUALQUIERA de las fechas encontradas
-    split_pattern = f"({ '|'.join(map(re.escape, found_dates)) })"
-    
-    # Dividimos el texto. El resultado es [texto_antes, fecha1, texto_entre, fecha2, texto_después, ...]
-    parts = re.split(split_pattern, text)
-    
-    # La primera parte es el encabezado, lo ignoramos para las atenciones
-    content_parts = parts[1:]
-
-    for i in range(0, len(content_parts), 2):
-        date_str = content_parts[i]
-        content_block = content_parts[i+1] if i + 1 < len(content_parts) else ""
+    for page_text in page_texts:
+        is_new_attention = starters_pattern.search(page_text)
         
-        attention_date = parse_date_flexible(date_str)
+        if is_new_attention:
+            # Si encontramos un inicio, guardamos la atención anterior (si existía)
+            if current_attention:
+                attentions.append(current_attention)
+            
+            # Buscamos la fecha en la página actual
+            date_match = date_pattern.search(page_text)
+            attention_date = parse_date_flexible(date_match.group(1)) if date_match else None
+            
+            # Creamos la nueva atención
+            current_attention = {
+                "fecha_atencion": attention_date,
+                "contenido": page_text
+            }
+        elif current_attention:
+            # Si no es una nueva atención, es una continuación de la anterior
+            current_attention["contenido"] += "\n" + page_text
+            
+    # No olvidar guardar la última atención después del bucle
+    if current_attention:
+        attentions.append(current_attention)
         
-        # Solo consideramos una atención si tiene contenido relevante
-        if attention_date and len(content_block.strip()) > 100:
-            attentions.append({"fecha_atencion": attention_date, "contenido": content_block.strip()})
-    
     return attentions
 
 # --- SECCIÓN DE INTERFAZ DE USUARIO (FRONT-END) ---
@@ -109,7 +117,7 @@ with st.sidebar:
     st.markdown("---")
     st.info("1. **Sube** la historia clínica.\n2. **Explora** el resumen y los detalles.\n3. **Usa** la búsqueda para encontrar términos.")
     st.markdown("---")
-    st.success("Prototipo v7.0 - Precisión Definitiva.")
+    st.success("Prototipo v8.0 - Lógica Reconstruida.")
 
 st.title("Panel de Auditoría de Historias Clínicas")
 st.markdown("### Sube un archivo PDF para analizarlo y obtener un resumen ejecutivo.")
@@ -119,13 +127,14 @@ uploaded_file = st.file_uploader("Arrastra y suelta el archivo PDF aquí", type=
 if not uploaded_file:
     st.info("Esperando un archivo de historia clínica para comenzar el análisis...")
 else:
-    full_text = extract_text_from_pdf(uploaded_file)
-    if full_text:
+    page_texts = extract_text_pages(uploaded_file)
+    if page_texts:
+        full_text = "\n".join(page_texts)
         st.success("✅ ¡Análisis completado! Revisa los resultados a continuación.")
         
         patient_name = find_patient_name(full_text)
         birth_date = find_birth_date(full_text)
-        attentions = extract_attentions(full_text)
+        attentions = extract_attentions(page_texts)
         
         st.markdown('<div class="card">', unsafe_allow_html=True)
         st.markdown('<p class="card-title">📄 Resumen del Paciente</p>', unsafe_allow_html=True)
@@ -142,13 +151,16 @@ else:
             if not attentions:
                 st.warning("No se pudieron identificar atenciones individuales claras en el documento.")
             else:
-                for i, att in enumerate(sorted(attentions, key=lambda x: x['fecha_atencion'], reverse=True)):
+                for i, att in enumerate(sorted(attentions, key=lambda x: x['fecha_atencion'] or datetime.min, reverse=True)):
                     age_at_attention = calculate_age(birth_date, att['fecha_atencion'])
-                    with st.expander(f"**{format_date_spanish(att['fecha_atencion'])}** - Edad del paciente: **{age_at_attention}**", expanded=(i==0)):
+                    fecha_display = format_date_spanish(att['fecha_atencion']) if att['fecha_atencion'] else "Fecha no identificada"
+                    
+                    with st.expander(f"**{fecha_display}** - Edad del paciente: **{age_at_attention}**", expanded=(i==0)):
                         content_block = att['contenido']
                         companion_match = re.search(r"(acompañad[oa]\s+por|en\s+compañía\s+de)\s+([^\n]+)", content_block, re.IGNORECASE)
-                        motivo = re.search(r"(?:motivo de consulta|enfermedad actual|control|evolución):?(.+?)(?:\n[A-ZÁÉÍÓÚÑ\s]{4,}:|$)", content_block, re.IGNORECASE | re.DOTALL)
-                        diagnostico = re.search(r"diagn[oó]stico:?(.+?)(?:\n[A-ZÁÉÍÓÚÑ\s]{4,}:|$)", content_block, re.IGNORECASE | re.DOTALL)
+                        motivo = re.search(r"(?:motivo de consulta|enfermedad actual|control|evolución)[\s:]*(.+?)(?:\n[A-ZÁÉÍÓÚÑ\s]{4,}:|$)", content_block, re.IGNORECASE | re.DOTALL)
+                        diagnostico = re.search(r"diagn[oó]stico[\s:]*(.+?)(?:\n[A-ZÁÉÍÓÚÑ\s]{4,}:|$)", content_block, re.IGNORECASE | re.DOTALL)
+                        
                         st.markdown(f"**Acompañante:** `{companion_match.group(2).strip() if companion_match else 'No especificado'}`")
                         st.info(f"**Motivo de Consulta/Evolución:** {motivo.group(1).strip() if motivo else 'No especificado'}")
                         st.success(f"**Diagnóstico/Plan:** {diagnostico.group(1).strip() if diagnostico else 'No especificado'}")
