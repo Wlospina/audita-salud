@@ -58,36 +58,37 @@ st.markdown("""
 
 # --- FUNCIONES DE LÓGICA DE BACK-END ---
 
+# REEMPLAZA LA FUNCIÓN ANTIGUA CON ESTA VERSIÓN MEJORADA
+
 def extract_text_from_pdf(pdf_file):
-    """Extrae todo el texto de un archivo PDF subido."""
+    """Extrae todo el texto de un archivo PDF subido, con manejo de errores mejorado."""
     try:
-        doc = fitz.open(stream=pdf_file.read(), filetype="pdf")
+        # Leemos el archivo en bytes para poder manejarlo
+        pdf_bytes = pdf_file.read()
+        doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+        
+        # --- NUEVA VERIFICACIÓN INTELIGENTE ---
+        if doc.is_encrypted:
+            st.error("❌ **Error: El PDF está protegido con contraseña.**")
+            st.warning("Para solucionarlo, abra el PDF en su computadora, elija 'Imprimir' y guárdelo como un nuevo PDF. Luego, suba ese nuevo archivo.")
+            doc.close()
+            return None
+            
         full_text = " ".join(page.get_text() for page in doc)
         doc.close()
+        
+        if not full_text.strip():
+            st.error("❌ **Error: El PDF no contiene texto extraíble.**")
+            st.warning("Este archivo podría ser una imagen escaneada. El sistema solo puede leer PDFs que contienen texto digital.")
+            return None
+
         return full_text
+        
     except Exception as e:
-        st.error(f"Error al procesar el PDF: {e}")
+        # Este error ahora capturará otros problemas, como archivos corruptos.
+        st.error(f"❌ **Error inesperado al procesar el PDF:** {e}")
+        st.info("El archivo podría estar dañado o tener un formato no compatible. Intente la solución de 'Imprimir a PDF'.")
         return None
-
-def calculate_age(birth_date, attention_date):
-    """Calcula la edad en años en un momento específico."""
-    if not birth_date or not attention_date:
-        return "N/D" # No Disponible
-    age = attention_date.year - birth_date.year - ((attention_date.month, attention_date.day) < (birth_date.month, birth_date.day))
-    return f"{age} años"
-
-def find_birth_date(text):
-    """Encuentra la fecha de nacimiento en el texto usando expresiones regulares."""
-    match = re.search(r"fecha\s+(de\s+)?nacimiento[\s:]*([0-9]{1,2}[/\-.][0-9]{1,2}[/\-.][0-9]{2,4})", text, re.IGNORECASE)
-    if match:
-        date_str = re.sub(r'[-.]', '/', match.group(2)) # Normaliza separadores a '/'
-        for fmt in ("%d/%m/%Y", "%d/%m/%y"):
-            try:
-                return datetime.strptime(date_str, fmt)
-            except ValueError:
-                pass
-    return None
-
 def extract_attentions(text):
     """
     Divide el texto en bloques de atención individuales, usando fechas como separadores.
