@@ -6,7 +6,7 @@ import bleach
 from html import escape
 
 # --- CONSTANTES ---
-DATE_PATTERN = re.compile(r"\b(\d{1,2}[/\s-](?:[a-zA-ZáéíóúñÁÉÍÓÚÑ]+|\d{1,2})[/\s-]\d{2,4}|\d{4}[/\s-]\d{1,2}[/\s-]\d{1,2})\b", re.IGNORECASE)
+DATE_PATTERN = re.compile(r"\b(\d{1,2}\s+(?:de\s+)?(?:[a-zA-ZáéíóúñÁÉÍÓÚÑ]+|\d{1,2})(?:\s+de\s+)?\d{2,4})\b", re.IGNORECASE)
 MESES_MAP = {
     'enero': '01', 'febrero': '02', 'marzo': '03', 'abril': '04', 'mayo': '05', 'junio': '06',
     'julio': '07', 'agosto': '08', 'septiembre': '09', 'octubre': '10', 'noviembre': '11', 'diciembre': '12'
@@ -27,13 +27,7 @@ st.markdown("""
 
 # --- SECCIÓN DE FUNCIONES DE LÓGICA (BACK-END) ---
 def format_date_spanish(date_obj):
-    """
-    Formatea un objeto datetime al formato español (e.g., "12 de mayo de 2023").
-    Args:
-        date_obj (datetime): Objeto datetime a formatear.
-    Returns:
-        str: Fecha formateada o "Fecha inválida" si no es un objeto datetime.
-    """
+    """Formatea un objeto datetime al formato español (e.g., "12 de mayo de 2023")."""
     if not isinstance(date_obj, datetime):
         return "Fecha inválida"
     meses = {1: "enero", 2: "febrero", 3: "marzo", 4: "abril", 5: "mayo", 6: "junio",
@@ -41,13 +35,7 @@ def format_date_spanish(date_obj):
     return f"{date_obj.day} de {meses[date_obj.month]} de {date_obj.year}"
 
 def parse_date_flexible(date_str):
-    """
-    Convierte una cadena de texto en un objeto datetime, soportando múltiples formatos.
-    Args:
-        date_str (str): Cadena que contiene la fecha (e.g., "12 mayo 2023", "12/05/23").
-    Returns:
-        datetime: Objeto datetime si la conversión es exitosa, None si falla.
-    """
+    """Convierte una cadena de texto en un objeto datetime, soportando múltiples formatos."""
     date_str_normalized = date_str.lower()
     for name, num in MESES_MAP.items():
         date_str_normalized = date_str_normalized.replace(name, num)
@@ -62,45 +50,37 @@ def parse_date_flexible(date_str):
     return None
 
 def find_birth_date(page_texts):
-    """
-    Busca la fecha de nacimiento en las primeras páginas del documento.
-    Args:
-        page_texts (list): Lista de textos extraídos por página.
-    Returns:
-        datetime: Objeto datetime con la fecha de nacimiento, None si no se encuentra.
-    """
-    for page in page_texts[:2]:  # Buscar en las primeras 2 páginas
-        match_label = re.search(r"Fecha\s*Nacimiento[\s:]*", page, re.IGNORECASE)
+    """Busca la fecha de nacimiento en todo el documento."""
+    for page in page_texts:
+        match_label = re.search(r"(?:Fecha\s*Nacimiento|Nacimiento)[\s:]*", page, re.IGNORECASE)
         if match_label:
-            text_after_label = page[match_label.end():match_label.end() + 100]
+            text_after_label = page[match_label.end():match_label.end() + 150]  # Ampliar el rango a 150 caracteres
             date_match = re.search(DATE_PATTERN, text_after_label)
             if date_match:
                 return parse_date_flexible(date_match.group(1))
+    st.warning("⚠️ No se pudo extraer la fecha de nacimiento. Revisar el formato en el PDF.")
     return None
 
 def find_patient_name(page_texts):
-    """
-    Busca el nombre del paciente en las primeras páginas del documento.
-    Args:
-        page_texts (list): Lista de textos extraídos por PLUGIN_NAME página.
-    Returns:
-        str: Nombre del paciente o "No encontrado" si no se halla.
-    """
+    """Busca el nombre del paciente en las primeras páginas del documento."""
     for page in page_texts[:2]:
         match = re.search(r"Nombre\s*Paciente[\s:]*\n([^\n]+)", page, re.IGNORECASE)
         if match:
             return match.group(1).strip().title()
     return "No encontrado"
 
+def find_identification(page_texts):
+    """Busca el número de identificación del paciente en el documento."""
+    for page in page_texts[:2]:
+        match = re.search(r"(?:Identificación|Documento)[\s:]*(\d+)", page, re.IGNORECASE)
+        if match:
+            return match.group(1).strip()
+    st.warning("⚠️ No se pudo extraer la identificación. Revisar el formato en el PDF.")
+    return "No encontrado"
+
 @st.cache_data
 def extract_text_pages(pdf_file):
-    """
-    Extrae el texto página por página de un archivo PDF.
-    Args:
-        pdf_file: Archivo PDF subido.
-    Returns:
-        list: Lista de cadenas con el texto de cada página, None si hay errores.
-    """
+    """Extrae el texto página por página de un archivo PDF."""
     try:
         pdf_bytes = pdf_file.read()
         doc = fitz.open(stream=pdf_bytes, filetype="pdf")
@@ -114,31 +94,18 @@ def extract_text_pages(pdf_file):
         doc.close()
         return pages
     except Exception as e:
-        st.error(f"❌ **Error al procesar el PDF:** {str(e)}. Por favor, verifica que el archivo sea un PDF válido.")
+        st.error(f"❌ **Error al procesar el PDF:** {str(e)}. Verifica que el archivo sea un PDF válido.")
         return None
 
 def calculate_age(birth_date, attention_date):
-    """
-    Calcula la edad del paciente en el momento de la atención.
-    Args:
-        birth_date (datetime): Fecha de nacimiento.
-        attention_date (datetime): Fecha de la atención.
-    Returns:
-        str: Edad en años o "N/D" si las fechas no son válidas.
-    """
+    """Calcula la edad del paciente en el momento de la atención."""
     if not isinstance(birth_date, datetime) or not isinstance(attention_date, datetime):
         return "N/D"
     age = attention_date.year - birth_date.year - ((attention_date.month, attention_date.day) < (birth_date.month, birth_date.day))
     return f"{age} años"
 
 def extract_attentions(page_texts):
-    """
-    Extrae atenciones médicas del documento, usando fechas y palabras clave como delimitadores.
-    Args:
-        page_texts (list): Lista de textos extraídos por página.
-    Returns:
-        list: Lista de diccionarios con fecha y contenido de cada atención.
-    """
+    """Extrae atenciones médicas del documento, usando fechas y palabras clave como delimitadores."""
     attentions = []
     current_attention = None
     starters = ["motivo de consulta", "enfermedad actual", "control", "evolución"]
@@ -168,7 +135,7 @@ with st.sidebar:
     st.markdown("---")
     st.info("1. **Sube** la historia clínica.\n2. **Explora** el resumen y los detalles.\n3. **Usa** la búsqueda para encontrar términos.")
     st.markdown("---")
-    st.success("Prototipo v8.1 - Lógica Optimizada.")
+    st.success("Prototipo v9.0 - Extracción Mejorada.")
 
 st.title("Panel de Auditoría de Historias Clínicas")
 st.markdown("### Sube un archivo PDF para analizarlo y obtener un resumen ejecutivo.")
@@ -190,14 +157,16 @@ else:
 
                 patient_name = find_patient_name(page_texts)
                 birth_date = find_birth_date(page_texts)
+                identification = find_identification(page_texts)
                 attentions = extract_attentions(page_texts)
 
                 st.markdown('<div class="card">', unsafe_allow_html=True)
                 st.markdown('<p class="card-title">📄 Resumen del Paciente</p>', unsafe_allow_html=True)
-                col1, col2, col3 = st.columns(3)
+                col1, col2, col3, col4 = st.columns(4)
                 col1.metric("Paciente", patient_name)
                 col2.metric("Fecha de Nacimiento", format_date_spanish(birth_date) if birth_date else "No encontrada")
-                col3.metric("Atenciones Identificadas", len(attentions))
+                col3.metric("Identificación", identification)
+                col4.metric("Atenciones Identificadas", len(attentions))
                 st.markdown('</div>', unsafe_allow_html=True)
 
                 tab1, tab2, tab3 = st.tabs(["📊 Resumen de Atenciones", "✅ Auditoría de Campos", "🔍 Búsqueda y Texto Completo"])
