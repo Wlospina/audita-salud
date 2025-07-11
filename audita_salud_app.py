@@ -51,13 +51,16 @@ def parse_date_flexible(date_str):
 
 def find_birth_date(page_texts):
     """Busca la fecha de nacimiento en todo el documento."""
-    for page in page_texts:
+    for i, page in enumerate(page_texts):
+        st.write(f"Buscando fecha de nacimiento en página {i+1}")
         match_label = re.search(r"(?:Fecha\s*Nacimiento|Nacimiento)[\s:]*", page, re.IGNORECASE)
         if match_label:
-            text_after_label = page[match_label.end():match_label.end() + 150]  # Ampliar el rango a 150 caracteres
+            text_after_label = page[match_label.end():match_label.end() + 150]
             date_match = re.search(DATE_PATTERN, text_after_label)
             if date_match:
-                return parse_date_flexible(date_match.group(1))
+                parsed_date = parse_date_flexible(date_match.group(1))
+                st.write(f"Fecha de nacimiento encontrada: {date_match.group(1)} -> {parsed_date}")
+                return parsed_date
     st.warning("⚠️ No se pudo extraer la fecha de nacimiento. Revisar el formato en el PDF.")
     return None
 
@@ -71,9 +74,11 @@ def find_patient_name(page_texts):
 
 def find_identification(page_texts):
     """Busca el número de identificación del paciente en el documento."""
-    for page in page_texts[:2]:
+    for i, page in enumerate(page_texts[:2]):
+        st.write(f"Buscando identificación en página {i+1}")
         match = re.search(r"(?:Identificación|Documento)[\s:]*(\d+)", page, re.IGNORECASE)
         if match:
+            st.write(f"Identificación encontrada: {match.group(1)}")
             return match.group(1).strip()
     st.warning("⚠️ No se pudo extraer la identificación. Revisar el formato en el PDF.")
     return "No encontrado"
@@ -82,12 +87,14 @@ def find_identification(page_texts):
 def extract_text_pages(pdf_file):
     """Extrae el texto página por página de un archivo PDF."""
     try:
+        st.write(f"Procesando archivo: {pdf_file.name}, tamaño: {pdf_file.size} bytes")
         pdf_bytes = pdf_file.read()
         doc = fitz.open(stream=pdf_bytes, filetype="pdf")
         if doc.is_encrypted:
             st.error("❌ **Error: El PDF está protegido por contraseña.**")
             return None
         pages = [page.get_text() for page in doc]
+        st.write(f"Extracción completada: {len(pages)} páginas procesadas")
         if not any(page.strip() for page in pages):
             st.error("❌ **Error: El PDF no contiene texto extraíble. Intenta con un PDF basado en texto.**")
             return None
@@ -111,7 +118,8 @@ def extract_attentions(page_texts):
     starters = ["motivo de consulta", "enfermedad actual", "control", "evolución"]
     starters_pattern = re.compile("|".join(starters), re.IGNORECASE)
 
-    for page_text in page_texts:
+    for i, page_text in enumerate(page_texts):
+        st.write(f"Procesando página {i+1} para atenciones")
         date_match = DATE_PATTERN.search(page_text)
         is_new_attention = starters_pattern.search(page_text) or date_match
 
@@ -127,6 +135,7 @@ def extract_attentions(page_texts):
 
     if current_attention:
         attentions.append(current_attention)
+    st.write(f"Atenciones detectadas: {len(attentions)}")
     return attentions
 
 # --- SECCIÓN DE INTERFAZ DE USUARIO (FRONT-END) ---
@@ -135,7 +144,7 @@ with st.sidebar:
     st.markdown("---")
     st.info("1. **Sube** la historia clínica.\n2. **Explora** el resumen y los detalles.\n3. **Usa** la búsqueda para encontrar términos.")
     st.markdown("---")
-    st.success("Prototipo v9.0 - Extracción Mejorada.")
+    st.success("Prototipo v9.1 - Depuración Activa.")
 
 st.title("Panel de Auditoría de Historias Clínicas")
 st.markdown("### Sube un archivo PDF para analizarlo y obtener un resumen ejecutivo.")
@@ -218,3 +227,4 @@ else:
                         full_text_display = re.sub(f"({re.escape(palabra_clave_escaped)})", r"<mark>\1</mark>", full_text_display, flags=re.IGNORECASE)
                         full_text_display = bleach.clean(full_text_display)
                     st.markdown(f'<div class="scroll-container">{full_text_display}</div>', unsafe_allow_html=True)
+                    
