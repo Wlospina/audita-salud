@@ -5,13 +5,14 @@ from datetime import datetime
 from html import escape
 
 # --- CONSTANTES ---
-# Patrón de fecha más robusto
+# Patrones de Regex compilados para mayor eficiencia y robustez
 DATE_PATTERN = re.compile(r"\b(\d{1,2}(?:\s*|/|-)(?:de)?(?:\s*|/|-)(?:[a-zA-ZáéíóúñÁÉÍÓÚÑ]+|\d{1,2})(?:\s*|/|-)(?:de)?(?:\s*|/|-)\d{2,4})\b", re.IGNORECASE)
 MESES_MAP = {
     'enero': '01', 'febrero': '02', 'marzo': '03', 'abril': '04', 'mayo': '05', 'junio': '06',
     'julio': '07', 'agosto': '08', 'septiembre': '09', 'octubre': '10', 'noviembre': '11', 'diciembre': '12'
 }
 STARTERS_PATTERN = re.compile(r"^(?:motivo de consulta|enfermedad actual|control|evolución)", re.IGNORECASE | re.MULTILINE)
+MESES_MAP_INVERSE = {v: k for k, v in MESES_MAP.items()}
 
 
 # --- CONFIGURACIÓN DE LA PÁGINA Y ESTILOS ---
@@ -32,7 +33,6 @@ st.markdown("""
 def format_date_spanish(date_obj):
     if not isinstance(date_obj, datetime): return "Fecha inválida"
     return f"{date_obj.day} de {MESES_MAP_INVERSE[date_obj.month]} de {date_obj.year}"
-MESES_MAP_INVERSE = {v: k for k, v in MESES_MAP.items()} # Para la función anterior
 
 def parse_date_flexible(date_str):
     date_str_normalized = date_str.lower()
@@ -48,13 +48,11 @@ def parse_date_flexible(date_str):
 
 def find_demographic_data(page_texts):
     """Busca los datos demográficos clave en las primeras páginas."""
-    full_text_header = "\n".join(page_texts[:2]) # Limitar búsqueda a las 2 primeras páginas
+    full_text_header = "\n".join(page_texts[:2])
     
-    # Búsqueda de Nombre
     name_match = re.search(r"Nombre\s*Paciente[\s:]*\n([^\n]+)", full_text_header, re.IGNORECASE)
     patient_name = name_match.group(1).strip().title() if name_match else "No encontrado"
     
-    # Búsqueda de Fecha de Nacimiento
     birth_date = None
     birth_date_label_match = re.search(r"Fecha\s*Nacimiento[\s:]*", full_text_header, re.IGNORECASE)
     if birth_date_label_match:
@@ -63,17 +61,18 @@ def find_demographic_data(page_texts):
         if date_match:
             birth_date = parse_date_flexible(date_match.group(1))
 
-    # Búsqueda de Identificación
-    id_match = re.search(r"(?:Identificación|Documento)[\s:]*([0-9X-.]+)", full_text_header, re.IGNORECASE)
+    # --- CORRECCIÓN DEL BUG ---
+    # El guion '-' debe escaparse con '\' dentro de un conjunto de caracteres [].
+    id_match = re.search(r"(?:Identificación|Documento)[\s:]*([0-9X\-.]+)", full_text_header, re.IGNORECASE)
     identification = id_match.group(1).strip() if id_match else "No encontrado"
 
     return patient_name, birth_date, identification
 
 @st.cache_data(show_spinner=False)
-def process_pdf_data(file_bytes):
+def process_pdf_data(_file_bytes):
     """Función cacheada que procesa los bytes del PDF y extrae toda la información."""
     try:
-        doc = fitz.open(stream=file_bytes, filetype="pdf")
+        doc = fitz.open(stream=_file_bytes, filetype="pdf")
         if doc.is_encrypted: return {"error": "El PDF está protegido por contraseña."}
         
         page_texts = [page.get_text() for page in doc]
@@ -81,10 +80,8 @@ def process_pdf_data(file_bytes):
         
         if not any(page.strip() for page in page_texts): return {"error": "El PDF no contiene texto extraíble."}
         
-        # Extraer datos demográficos
         patient_name, birth_date, identification = find_demographic_data(page_texts)
 
-        # Extraer Atenciones
         attentions = []
         current_attention_content = []
         current_attention_date = None
@@ -94,16 +91,15 @@ def process_pdf_data(file_bytes):
             date_on_page = DATE_PATTERN.search(page_text)
 
             if is_new_attention_page and date_on_page:
-                if current_attention_content: # Guardar la atención anterior
+                if current_attention_content:
                     attentions.append({"fecha_atencion": current_attention_date, "contenido": "\n".join(current_attention_content)})
                 
-                # Iniciar nueva atención
                 current_attention_date = parse_date_flexible(date_on_page.group(1))
                 current_attention_content = [page_text]
-            elif current_attention_content: # Es una página de continuación
+            elif current_attention_content:
                 current_attention_content.append(page_text)
         
-        if current_attention_content: # Guardar la última atención
+        if current_attention_content:
             attentions.append({"fecha_atencion": current_attention_date, "contenido": "\n".join(current_attention_content)})
 
         return {
@@ -125,7 +121,7 @@ with st.sidebar:
     st.markdown("---")
     st.info("1. **Sube** la historia clínica.\n2. **Explora** el resumen y los detalles.\n3. **Usa** la búsqueda para encontrar términos.")
     st.markdown("---")
-    st.success("Prototipo v9.3 - Final.")
+    st.success("Prototipo v10.0 - Estable.")
 
 st.title("Panel de Auditoría de Historias Clínicas")
 st.markdown("### Sube un archivo PDF para analizarlo y obtener un resumen ejecutivo.")
@@ -182,7 +178,6 @@ else:
         with tab3:
             st.header("Explorador de Texto Completo")
             palabra_clave = st.text_input("Ingresa una palabra o frase para resaltar en el texto")
-            # Lógica de resaltado segura y correcta
             full_text_escaped = escape("\n".join(data['page_texts']))
             if palabra_clave:
                 full_text_display = re.sub(f"({re.escape(palabra_clave)})", r"<mark>\1</mark>", full_text_escaped, flags=re.IGNORECASE)
